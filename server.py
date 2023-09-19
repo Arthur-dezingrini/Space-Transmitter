@@ -15,11 +15,10 @@ server_socket_a.listen()
 client_socket_a, client_address_a = server_socket_a.accept()
 
 fileName = client_socket_a.recv(1024).decode()
-print(fileName)
 def receive_messages(client_socket):
     with open("./Serverkeys/{}".format(fileName), 'wb') as arquivo:
         while True:
-            dados = client_socket.recv(2048)
+            dados = client_socket.recv(1024)
             if not dados:   
                 break
             arquivo.write(dados)
