@@ -1,4 +1,4 @@
-import os
+import os, time
 
 def clear():
     os.system("cls")
@@ -14,10 +14,6 @@ def openFile (file, modo):
     key_data = key_file.read()
     key_file.close()
     return key_data
-
-def sendFile (client, FileName, FileContent):
-    client.send(FileName.encode())
-    client.send(FileContent)
 
 def CreateFile (name):
     if os.path.isfile(name):

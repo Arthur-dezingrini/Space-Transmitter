@@ -1,12 +1,10 @@
 import rsa
 import socket
-import subprocess
 import datetime
+import threading
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from functions import *
-
-#subprocess.Popen("python server.py", shell=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 HOST_B = "127.0.0.1"
 PORT_B = 443
@@ -18,8 +16,23 @@ FileExist("dados")
 FileExist("Assinaturas")
 CreateFile("SondaNames.db")
 
+stop_flag = True
+def receive_server_message(client_socket):
+    while stop_flag:
+        message = client_socket.recv(1024).decode()
+        if not message:
+            break
+        print("Servidor diz:", message)
+        
+
+message_thread = threading.Thread(target=receive_server_message, args=(client,))
+message_thread.start()
+
 while True:
-    print("""1 - Cadastrar Sonda e Gerar Par de Chaves
+    print("aguarde...")
+    time.sleep(3)
+    clear()
+    print("""        1 - Cadastrar Sonda e Gerar Par de Chaves
         2 - Enviar Chave da Sonda
         3 - Coletar Dados da Sonda
         4 - Gerar Assinatura dos dados Coletados
@@ -35,9 +48,8 @@ while True:
     if option == 1:
         clear()
         sondaName = input("Digite o nome da sonda: ")
-        file = open("SondaNames.db", "a")
-        file.write(f"{sondaName}.public.pem\n")
-        file.close()
+        with open("SondaNames.db", "a") as file:
+            file.write(f"{sondaName}.public.pem\n")
 
         (pubKey, privKey) = rsa.newkeys(2048)
 
@@ -59,7 +71,10 @@ while True:
             selected_sonda = sonda_list[selectKey - 1]
             with open(f"./Keys/{selected_sonda}", "rb") as file:
                 file_content = file.read()
-            sendFile(client, f"./Serverkeys/{selected_sonda}", file_content)
+
+            client.send(f"./Serverkeys/{selected_sonda}".encode())
+            client.send(file_content)
+            
 
         except ValueError:
             print("Digite uma opção válida")
@@ -104,10 +119,9 @@ while True:
         hash_value = rsa.compute_hash(file, "SHA-256")
         signature = rsa.sign(file, privateKey, "SHA-256")
 
-        s = open(f"./Assinaturas/signature-{pathData}", "wb")
-        s.write(signature)
-        s.close()
-
+        with open(f"./Assinaturas/signature-{pathData}", "wb")  as s:
+            s.write(signature)
+            
     elif option == 5:
         fileList = []
         for file in os.listdir("./dados"):
@@ -120,11 +134,27 @@ while True:
                 file_content_signature = file.read()
         with open(f"./dados/{fileList[select - 1]}", "rb") as file:
                 file_content_dados = file.read()
+               
+        pathServerData = f"./ServerData/{fileList[select - 1]}"
+        pathserverSignature =f"./ServerSignature/{fileList[select - 1]}"
 
-        sendFile(client, f"./ServerData/{fileList[select - 1]}", file_content_dados)
-        sendFile(client, f"./ServerSignature/{fileList[select - 1]}", file_content_signature)
         
+        client.send(f"./ServerData/{fileList[select - 1]}".encode())
+        client.send(file_content_dados)
+        
+        time.sleep(0.1)
+
+        client.send(f"./ServerSignature/signature-{fileList[select - 1]}".encode())
+        client.send(file_content_signature)
+        
+
 
     elif option == 6:
         clear()
+        stop_flag = False
         break
+        
+        
+message_thread.join()
+print("Thread de mensagens encerrada. O programa está sendo encerrado.")
+
