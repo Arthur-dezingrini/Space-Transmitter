@@ -47,17 +47,20 @@ while True:
 
     if option == 1:
         clear()
-        sondaName = input("Digite o nome da sonda: ")
-        with open("SondaNames.db", "a") as file:
-            file.write(f"{sondaName}.public.pem\n")
+        try:
+            sondaName = int(input("Escolha a Sonda: "))
+            with open("SondaNames.db", "a") as file:
+                file.write(f"{sondaName}.public.pem\n")
 
-        (pubKey, privKey) = rsa.newkeys(2048)
+            (pubKey, privKey) = rsa.newkeys(2048)
 
-        with open(f"./Keys/{sondaName}.public.pem", "wb") as key_file:
-            key_file.write(pubKey.save_pkcs1("PEM"))
+            with open(f"./Keys/{sondaName}.public.pem", "wb") as key_file:
+                key_file.write(pubKey.save_pkcs1("PEM"))
 
-        with open(f"./Keys/{sondaName}.private.pem", "wb") as key_file:
-            key_file.write(privKey.save_pkcs1("PEM"))
+            with open(f"./Keys/{sondaName}.private.pem", "wb") as key_file:
+                key_file.write(privKey.save_pkcs1("PEM"))
+        except:
+            print("digite uma opcao valida")
 
     elif option == 2:
         clear()
@@ -110,17 +113,19 @@ while True:
             fileList.append(file)
         for contador, nameFile in enumerate(fileList, start=1):
             print(f"{contador}: {nameFile}")
+        try:
+            selectFile = int(input("escolha qual dado deseja gerar uma assinatura: "))
+            pathData = fileList[selectFile - 1]
 
-        selectFile = int(input("escolha qual dado deseja gerar uma assinatura: "))
-        pathData = fileList[selectFile - 1]
+            privateKey = rsa.PrivateKey.load_pkcs1(openFile(f"./Keys/{pathData.split('-')[0]}.private.pem", "rb"))
+            file = openFile(f"./dados/{pathData}", "rb")
+            hash_value = rsa.compute_hash(file, "SHA-256")
+            signature = rsa.sign(file, privateKey, "SHA-256")
 
-        privateKey = rsa.PrivateKey.load_pkcs1(openFile(f"./Keys/{pathData.split('-')[0]}.private.pem", "rb"))
-        file = openFile(f"./dados/{pathData}", "rb")
-        hash_value = rsa.compute_hash(file, "SHA-256")
-        signature = rsa.sign(file, privateKey, "SHA-256")
-
-        with open(f"./Assinaturas/signature-{pathData}", "wb")  as s:
-            s.write(signature)
+            with open(f"./Assinaturas/signature-{pathData}", "wb")  as s:
+                s.write(signature)
+        except: 
+            print("digite uma opcao valida")
             
     elif option == 5:
         fileList = []
@@ -128,25 +133,26 @@ while True:
             fileList.append(file)
         for contador, nameFile in enumerate(fileList, start=1):
             print(f"{contador}: {nameFile}")
+        try:
+            select = int(input("escolha qual arquivo voce quer verificar a autenticidade: "))
+            with open(f"./Assinaturas/signature-{fileList[select - 1]}", "rb") as file:
+                    file_content_signature = file.read()
+            with open(f"./dados/{fileList[select - 1]}", "rb") as file:
+                    file_content_dados = file.read()
+                
+            pathServerData = f"./ServerData/{fileList[select - 1]}"
+            pathserverSignature =f"./ServerSignature/{fileList[select - 1]}"
 
-        select = int(input("escolha: "))
-        with open(f"./Assinaturas/signature-{fileList[select - 1]}", "rb") as file:
-                file_content_signature = file.read()
-        with open(f"./dados/{fileList[select - 1]}", "rb") as file:
-                file_content_dados = file.read()
-               
-        pathServerData = f"./ServerData/{fileList[select - 1]}"
-        pathserverSignature =f"./ServerSignature/{fileList[select - 1]}"
+            
+            client.send(f"./ServerData/{fileList[select - 1]}".encode())
+            client.send(file_content_dados)
+            
+            time.sleep(0.1)
 
-        
-        client.send(f"./ServerData/{fileList[select - 1]}".encode())
-        client.send(file_content_dados)
-        
-        time.sleep(0.1)
-
-        client.send(f"./ServerSignature/signature-{fileList[select - 1]}".encode())
-        client.send(file_content_signature)
-        
+            client.send(f"./ServerSignature/signature-{fileList[select - 1]}".encode())
+            client.send(file_content_signature)
+        except:
+            print("digite uma opcao valida")
 
 
     elif option == 6:
